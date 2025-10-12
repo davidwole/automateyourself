@@ -1,0 +1,29 @@
+{
+  "name": "restaurant-booking-system",
+  "version": "1.0.0",
+  "description": "Restaurant booking system with Express and MongoDB",
+  "main": "app.js",
+  "scripts": {
+    "start": "nodemon app.js",
+    "dev": "nodemon app.js",
+    "test": "jest"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "mongoose": "^7.5.0"
+  },
+  "devDependencies": {
+    "jest": "^29.6.2",
+    "nodemon": "^3.1.10"
+  },
+  "keywords": [
+    "restaurant",
+    "booking",
+    "express",
+    "mongodb"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}
