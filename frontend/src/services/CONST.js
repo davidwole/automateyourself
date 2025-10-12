@@ -1,1 +1,1 @@
-export const BASEURL = "https://automateyourself.onrender.com";
+export const BASEURL = "http://localhost:5001";
