@@ -1,3 +1,5 @@
+const BASEURL = "https://automateyourself.onrender.com";
+
 export const getAvailableSlots = async (date, partySize) => {
   try {
     const response = await fetch(

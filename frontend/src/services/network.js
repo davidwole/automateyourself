@@ -1,7 +1,9 @@
+const BASEURL = "https://automateyourself.onrender.com";
+
 export const api = {
   async createReservation(reservationData) {
     try {
-      const response = await fetch(`/api/reservations`, {
+      const response = await fetch(`${BASEURL}/api/reservations`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -24,7 +26,7 @@ export const api = {
 
   async getReservation(bookingId) {
     try {
-      const response = await fetch(`/api/reservations/${bookingId}`);
+      const response = await fetch(`${BASEURL}/api/reservations/${bookingId}`);
 
       if (!response.ok) {
         throw new Error("Failed to fetch reservation");
@@ -40,12 +42,15 @@ export const api = {
 
   async cancelReservation(bookingId) {
     try {
-      const response = await fetch(`/api/reservations/${bookingId}/cancel`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await fetch(
+        `${BASEURL}/api/reservations/${bookingId}/cancel`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
