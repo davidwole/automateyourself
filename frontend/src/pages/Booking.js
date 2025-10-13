@@ -169,6 +169,17 @@ Duration: 90 minutes
 
   const handleDateChange = (e) => {
     const newDate = e.target.value;
+    const selectedDate = new Date(newDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time to compare only dates
+
+    // Prevent selecting dates in the past
+    if (selectedDate < today) {
+      setDateError("Cannot select a date in the past");
+      setAvailableSlots([]);
+      return;
+    }
+
     setBookingForm((prev) => ({ ...prev, date: newDate }));
     setSelectedSlot(null);
   };
@@ -380,7 +391,7 @@ Duration: 90 minutes
                     </p>
                   </div>
                 ) : availableSlots.length > 0 ? (
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="slots">
                     {availableSlots.map((slot, index) => (
                       <button
                         key={index}

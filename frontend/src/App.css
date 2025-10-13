@@ -338,6 +338,11 @@ textarea {
   margin-top: 1rem;
 }
 
+.slots {
+  display: flex;
+  flex-direction: column;
+}
+
 /* Grid */
 .grid {
   display: grid;
@@ -734,6 +739,10 @@ button:disabled {
   background-color: #eff6ff;
   color: #1d4ed8;
   box-shadow: 2px 2px;
+}
+
+.time-slot-button:not(:last-child) {
+  margin-bottom: 1rem;
 }
 
 /* Reservation card */
