@@ -120,6 +120,22 @@ export default function Booking() {
       };
 
       const reservation = await api.createReservation(reservationData);
+      const ghlReservation = await fetch(
+        `https://services.leadconnectorhq.com/hooks/8PiH83Z85bMdl7GfS1Ax/webhook-trigger/96fff4b4-3771-4742-9ef8-0efd504cbe6b`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            reservationData,
+          }),
+        }
+      );
+
+      const data = await ghlReservation.json();
+      console.log("Response:", data);
+
       setBookingStatus({
         type: "success",
         message: "Reservation confirmed!",
