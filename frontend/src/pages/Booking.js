@@ -39,6 +39,20 @@ export default function Booking() {
     return Math.ceil(partySize / 4);
   };
 
+  const add = (e) => {
+    e.preventDefault();
+    const partySize = bookingForm.partySize + 1;
+    setBookingForm({ ...bookingForm, partySize });
+  };
+
+  const subtract = (e) => {
+    e.preventDefault();
+    const partySize = bookingForm.partySize - 1;
+    if (partySize >= 1) {
+      setBookingForm({ ...bookingForm, partySize });
+    }
+  };
+
   // Get next Friday or Saturday
   const getNextAvailableDate = () => {
     const today = new Date();
@@ -405,19 +419,24 @@ Duration: 90 minutes
                       <Users className="inline-block w-4 h-4 mr-1" />
                       Party Size *
                     </label>
-                    <input
-                      type="number"
-                      required
-                      min="1"
-                      value={bookingForm.partySize}
-                      onChange={(e) =>
-                        setBookingForm((prev) => ({
-                          ...prev,
-                          partySize: parseInt(e.target.value) || 1,
-                        }))
-                      }
-                      placeholder="Number of guests"
-                    />
+                    <div className="flex">
+                      <input
+                        type="number"
+                        min="1"
+                        required
+                        disabled
+                        value={bookingForm.partySize}
+                        onChange={(e) =>
+                          setBookingForm((prev) => ({
+                            ...prev,
+                            partySize: parseInt(e.target.value) || 1,
+                          }))
+                        }
+                        placeholder="Number of guests"
+                      />
+                      <button onClick={add}>+</button>
+                      <button onClick={subtract}>-</button>
+                    </div>
                     <p className="text-xs text-slate-500 mt-1">
                       {requiredTables} table{requiredTables > 1 ? "s" : ""}{" "}
                       required (4 guests per table)
