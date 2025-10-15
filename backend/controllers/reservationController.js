@@ -22,13 +22,7 @@ exports.getAvailableSlots = async (req, res) => {
         .json({ error: "Invalid date format. Use YYYY-MM-DD" });
     }
 
-    // Validate party size (max 4 per table)
     const partySizeNum = parseInt(partySize);
-    if (partySizeNum > 4) {
-      return res.status(400).json({
-        error: "Maximum party size is 4 guests per table",
-      });
-    }
 
     // Check if date is Friday or Saturday
     const dateObj = new Date(date);
@@ -61,15 +55,18 @@ exports.getAvailableSlots = async (req, res) => {
     });
 
     // Calculate availability for each slot
-    // Each reservation takes 1 table regardless of party size (1-4 guests)
     const availableSlots = timeSlots
       .map((slot) => {
         const slotReservations = reservations.filter(
           (res) => res.dateTime.getTime() === slot.dateTime.getTime()
         );
 
-        const tablesReserved = slotReservations.length; // Each reservation = 1 table
-        const availableCount = slot.capacity - tablesReserved; // Tables remaining
+        // Count total tables reserved (each reservation can have multiple tables)
+        const tablesReserved = slotReservations.reduce((sum, res) => {
+          return sum + (res.tableNumbers ? res.tableNumbers.length : 0);
+        }, 0);
+
+        const availableCount = slot.capacity - tablesReserved;
 
         return {
           time: slot.time,
@@ -77,7 +74,7 @@ exports.getAvailableSlots = async (req, res) => {
           capacity: slot.capacity,
           reserved: tablesReserved,
           availableCount,
-          canAccommodate: availableCount > 0, // Need at least 1 table
+          canAccommodate: availableCount > 0,
           slotDuration: slot.slotDuration || 90,
         };
       })
@@ -95,6 +92,41 @@ exports.getAvailableSlots = async (req, res) => {
   }
 };
 
+// Get reserved tables for a specific time slot
+exports.getReservedTables = async (req, res) => {
+  try {
+    const { dateTime } = req.query;
+
+    if (!dateTime) {
+      return res.status(400).json({ error: "DateTime is required" });
+    }
+
+    const reservationDateTime = new Date(dateTime);
+
+    // Get all confirmed reservations for this time slot
+    const reservations = await Reservation.find({
+      dateTime: reservationDateTime,
+      status: "confirmed",
+    });
+
+    // Extract all reserved table numbers
+    const reservedTables = reservations.reduce((tables, res) => {
+      if (res.tableNumbers && Array.isArray(res.tableNumbers)) {
+        return [...tables, ...res.tableNumbers];
+      }
+      return tables;
+    }, []);
+
+    res.json({
+      dateTime: reservationDateTime,
+      reservedTables: [...new Set(reservedTables)].sort((a, b) => a - b),
+    });
+  } catch (error) {
+    console.error("Error getting reserved tables:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
 // Create a new reservation
 exports.createReservation = async (req, res) => {
   try {
@@ -105,6 +137,7 @@ exports.createReservation = async (req, res) => {
       customerEmail,
       customerPhone,
       specialRequests,
+      tableNumbers,
     } = req.body;
 
     // Validation
@@ -113,15 +146,27 @@ exports.createReservation = async (req, res) => {
       !partySize ||
       !customerName ||
       !customerEmail ||
-      !customerPhone
+      !customerPhone ||
+      !tableNumbers ||
+      !Array.isArray(tableNumbers) ||
+      tableNumbers.length === 0
     ) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // Validate party size
-    if (partySize > 4) {
+    // Validate table numbers
+    const validTables = tableNumbers.every(
+      (num) => num >= 1 && num <= 10 && Number.isInteger(num)
+    );
+    if (!validTables) {
+      return res.status(400).json({ error: "Invalid table numbers" });
+    }
+
+    // Calculate required tables based on party size
+    const requiredTables = Math.ceil(partySize / 4);
+    if (tableNumbers.length !== requiredTables) {
       return res.status(400).json({
-        error: "Maximum party size is 4 guests per table",
+        error: `Party size of ${partySize} requires exactly ${requiredTables} table(s)`,
       });
     }
 
@@ -137,19 +182,39 @@ exports.createReservation = async (req, res) => {
       return res.status(400).json({ error: "Invalid time slot" });
     }
 
-    // Check availability - count number of reservations (tables taken)
+    // Check if requested tables are already reserved
     const existingReservations = await Reservation.find({
       dateTime: reservationDateTime,
       status: "confirmed",
     });
 
-    const tablesReserved = existingReservations.length;
-    const availableTables = timeSlot.capacity - tablesReserved;
+    const reservedTables = existingReservations.reduce((tables, res) => {
+      if (res.tableNumbers && Array.isArray(res.tableNumbers)) {
+        return [...tables, ...res.tableNumbers];
+      }
+      return tables;
+    }, []);
 
-    if (availableTables < 1) {
+    const conflictingTables = tableNumbers.filter((num) =>
+      reservedTables.includes(num)
+    );
+
+    if (conflictingTables.length > 0) {
       return res.status(400).json({
-        error: "No tables available for this time slot",
+        error: `Table(s) ${conflictingTables.join(", ")} are already reserved`,
+        conflictingTables,
+      });
+    }
+
+    // Check total capacity
+    const totalReservedTables = reservedTables.length;
+    const availableTables = timeSlot.capacity - totalReservedTables;
+
+    if (availableTables < tableNumbers.length) {
+      return res.status(400).json({
+        error: "Not enough tables available for this time slot",
         available: availableTables,
+        requested: tableNumbers.length,
       });
     }
 
@@ -163,6 +228,7 @@ exports.createReservation = async (req, res) => {
       customerPhone,
       specialRequests,
       bookingId,
+      tableNumbers: tableNumbers.sort((a, b) => a - b),
     });
 
     await reservation.save();
@@ -174,6 +240,7 @@ exports.createReservation = async (req, res) => {
         dateTime: reservation.dateTime,
         partySize: reservation.partySize,
         customerName: reservation.customerName,
+        tableNumbers: reservation.tableNumbers,
         status: reservation.status,
         slotDuration: timeSlot.slotDuration || 90,
       },

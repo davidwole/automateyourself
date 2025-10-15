@@ -1,4 +1,4 @@
-const BASEURL = "http://localhost:5001";
+const BASEURL = "https://automateyourself.onrender.com";
 
 export const api = {
   async createReservation(reservationData) {

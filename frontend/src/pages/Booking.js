@@ -14,6 +14,7 @@ import {
 import "../App.css";
 import { getAvailableSlots } from "../services/api";
 import { api } from "../services/network";
+import Table from "../assets/table.png";
 
 export default function Booking() {
   const [bookingForm, setBookingForm] = useState({
@@ -30,6 +31,13 @@ export default function Booking() {
   const [loading, setLoading] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [dateError, setDateError] = useState("");
+  const [selectedTables, setSelectedTables] = useState([]);
+  const [reservedTables, setReservedTables] = useState([]);
+
+  // Calculate required tables based on party size
+  const getRequiredTables = (partySize) => {
+    return Math.ceil(partySize / 4);
+  };
 
   // Get next Friday or Saturday
   const getNextAvailableDate = () => {
@@ -38,16 +46,12 @@ export default function Booking() {
     let daysToAdd = 0;
 
     if (dayOfWeek < 5) {
-      // Monday to Thursday - next Friday
       daysToAdd = 5 - dayOfWeek;
     } else if (dayOfWeek === 5) {
-      // Friday - today
       daysToAdd = 0;
     } else if (dayOfWeek === 6) {
-      // Saturday - today
       daysToAdd = 0;
     } else {
-      // Sunday - next Friday
       daysToAdd = 5;
     }
 
@@ -57,7 +61,6 @@ export default function Booking() {
   };
 
   useEffect(() => {
-    // Set initial date to next available Friday/Saturday
     const initialDate = getNextAvailableDate();
     setBookingForm((prev) => ({ ...prev, date: initialDate }));
   }, []);
@@ -101,10 +104,71 @@ export default function Booking() {
     }
   };
 
+  // Load reserved tables for selected slot
+  const loadReservedTables = async (slot) => {
+    if (!slot) return;
+
+    try {
+      const response = await fetch(
+        `https://automateyourself.onrender.com/api/reservations/reserved-tables?dateTime=${slot.dateTime}`
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch reserved tables");
+      }
+
+      const data = await response.json();
+      setReservedTables(data.reservedTables || []);
+    } catch (error) {
+      console.error("Error loading reserved tables:", error);
+      setReservedTables([]);
+    }
+  };
+
+  const handleSlotSelection = async (slot) => {
+    setSelectedSlot(slot);
+    setSelectedTables([]);
+    await loadReservedTables(slot);
+  };
+
+  const handleTableSelection = (tableNumber) => {
+    const requiredTables = getRequiredTables(bookingForm.partySize);
+
+    if (selectedTables.includes(tableNumber)) {
+      // Deselect table
+      setSelectedTables(selectedTables.filter((t) => t !== tableNumber));
+    } else {
+      // Select table
+      if (selectedTables.length < requiredTables) {
+        setSelectedTables(
+          [...selectedTables, tableNumber].sort((a, b) => a - b)
+        );
+      } else {
+        // Replace last selected table if already at max
+        const newTables = [...selectedTables.slice(0, -1), tableNumber].sort(
+          (a, b) => a - b
+        );
+        setSelectedTables(newTables);
+      }
+    }
+  };
+
   const handleBookingSubmit = async (e) => {
     e.preventDefault();
+
+    const requiredTables = getRequiredTables(bookingForm.partySize);
+
     if (!selectedSlot) {
       alert("Please select a time slot");
+      return;
+    }
+
+    if (selectedTables.length !== requiredTables) {
+      alert(
+        `Please select exactly ${requiredTables} table${
+          requiredTables > 1 ? "s" : ""
+        } for ${bookingForm.partySize} guests`
+      );
       return;
     }
 
@@ -117,9 +181,11 @@ export default function Booking() {
         customerEmail: bookingForm.customerEmail,
         customerPhone: bookingForm.customerPhone,
         specialRequests: bookingForm.specialRequests,
+        tableNumbers: selectedTables,
       };
 
       const reservation = await api.createReservation(reservationData);
+
       const ghlReservation = await fetch(
         `https://services.leadconnectorhq.com/hooks/8PiH83Z85bMdl7GfS1Ax/webhook-trigger/96fff4b4-3771-4742-9ef8-0efd504cbe6b`,
         {
@@ -148,6 +214,7 @@ Name: ${reservationData.customerName}
 Email: ${reservationData.customerEmail}
 Phone: ${reservationData.customerPhone}
 Party Size: ${reservationData.partySize} guests
+Table(s): ${selectedTables.join(", ")}
 Time: ${selectedSlot.time}
 Duration: 90 minutes
       `);
@@ -163,8 +230,9 @@ Duration: 90 minutes
         specialRequests: "",
       });
       setSelectedSlot(null);
+      setSelectedTables([]);
+      setReservedTables([]);
 
-      // Reload available slots
       await loadAvailableSlots();
     } catch (error) {
       setBookingStatus({
@@ -183,13 +251,17 @@ Duration: 90 minutes
     }
   }, [bookingForm.date, bookingForm.partySize]);
 
+  // Reset table selection when party size changes
+  useEffect(() => {
+    setSelectedTables([]);
+  }, [bookingForm.partySize]);
+
   const handleDateChange = (e) => {
     const newDate = e.target.value;
     const selectedDate = new Date(newDate);
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset time to compare only dates
+    today.setHours(0, 0, 0, 0);
 
-    // Prevent selecting dates in the past
     if (selectedDate < today) {
       setDateError("Cannot select a date in the past");
       setAvailableSlots([]);
@@ -198,7 +270,11 @@ Duration: 90 minutes
 
     setBookingForm((prev) => ({ ...prev, date: newDate }));
     setSelectedSlot(null);
+    setSelectedTables([]);
+    setReservedTables([]);
   };
+
+  const requiredTables = getRequiredTables(bookingForm.partySize);
 
   return (
     <div className="min-h-screen bg-gradient-to-br">
@@ -212,7 +288,6 @@ Duration: 90 minutes
               Available Fridays & Saturdays, 10 PM - 12 Midnight
             </p>
 
-            {/* Info Banner */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
               <div className="flex items-start">
                 <Info className="w-5 h-5 text-blue-600 mr-2 flex-shrink-0 mt-0.5" />
@@ -222,6 +297,7 @@ Duration: 90 minutes
                     <li>Each table accommodates up to 4 guests</li>
                     <li>Reservation duration: 90 minutes</li>
                     <li>Available slots: 10:00 PM and 12:00 AM</li>
+                    <li>Select your specific table(s) based on party size</li>
                   </ul>
                 </div>
               </div>
@@ -251,18 +327,11 @@ Duration: 90 minutes
                     {bookingStatus.message}
                   </span>
                 </div>
-                {bookingStatus.reservation && (
-                  <div className="text-sm text-green-700 mt-1">
-                    Reserved for {bookingStatus.reservation.partySize} guests
-                    (90-minute slot)
-                  </div>
-                )}
               </div>
             )}
 
             <form onSubmit={handleBookingSubmit}>
               <div className="grid md:grid-cols-2 gap-6 mb-6">
-                {/* Customer Information */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-slate-700">
                     Your Information
@@ -326,7 +395,6 @@ Duration: 90 minutes
                   </div>
                 </div>
 
-                {/* Reservation Details */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-slate-700">
                     Reservation Details
@@ -335,24 +403,25 @@ Duration: 90 minutes
                   <div>
                     <label>
                       <Users className="inline-block w-4 h-4 mr-1" />
-                      Party Size * (Max 4)
+                      Party Size *
                     </label>
-                    <select
+                    <input
+                      type="number"
                       required
+                      min="1"
                       value={bookingForm.partySize}
                       onChange={(e) =>
                         setBookingForm((prev) => ({
                           ...prev,
-                          partySize: parseInt(e.target.value),
+                          partySize: parseInt(e.target.value) || 1,
                         }))
                       }
-                    >
-                      {[1, 2, 3, 4].map((size) => (
-                        <option key={size} value={size}>
-                          {size} {size === 1 ? "Guest" : "Guests"}
-                        </option>
-                      ))}
-                    </select>
+                      placeholder="Number of guests"
+                    />
+                    <p className="text-xs text-slate-500 mt-1">
+                      {requiredTables} table{requiredTables > 1 ? "s" : ""}{" "}
+                      required (4 guests per table)
+                    </p>
                   </div>
 
                   <div>
@@ -376,23 +445,51 @@ Duration: 90 minutes
                   </div>
 
                   <div>
-                    <label>Special Requests</label>
-                    <textarea
-                      value={bookingForm.specialRequests}
-                      onChange={(e) =>
-                        setBookingForm((prev) => ({
-                          ...prev,
-                          specialRequests: e.target.value,
-                        }))
-                      }
-                      rows={4}
-                      placeholder="Any special requests or dietary requirements?"
-                    />
+                    <label>Seating Arrangement</label>
+                    <img src={Table} alt="Table layout" className="seating" />
                   </div>
                 </div>
               </div>
 
-              {/* Available Time Slots */}
+              {selectedSlot && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-slate-700 mb-4">
+                    Select Your Table(s)
+                  </h3>
+                  <p className="text-sm text-slate-600 mb-3">
+                    Select {requiredTables} table{requiredTables > 1 ? "s" : ""}{" "}
+                    for your party of {bookingForm.partySize}
+                  </p>
+                  <div className="flex grid-cols-5 gap-3">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((tableNum) => {
+                      const isReserved = reservedTables.includes(tableNum);
+                      const isSelected = selectedTables.includes(tableNum);
+
+                      return (
+                        <button
+                          key={tableNum}
+                          type="button"
+                          onClick={() =>
+                            !isReserved && handleTableSelection(tableNum)
+                          }
+                          disabled={isReserved}
+                          className={`p-4 rounded-lg border-2 font-semibold transition-all ${
+                            isReserved
+                              ? "bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed"
+                              : isSelected
+                              ? "shadow-md button-selected"
+                              : "bg-white border-slate-300 text-slate-700 hover:border-blue-300 hover:bg-blue-50"
+                          }`}
+                        >
+                          {tableNum}
+                          {isReserved && <div className="text-xs mt-1"></div>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div className="mb-6">
                 <h3 className="text-lg font-semibold text-slate-700 mb-4">
                   <Clock className="inline-block w-4 h-4 mr-1" />
@@ -412,7 +509,7 @@ Duration: 90 minutes
                       <button
                         key={index}
                         type="button"
-                        onClick={() => setSelectedSlot(slot)}
+                        onClick={() => handleSlotSelection(slot)}
                         className={`time-slot-button p-4 rounded-lg ${
                           selectedSlot?.time === slot.time ? "selected" : ""
                         }`}
@@ -425,9 +522,6 @@ Duration: 90 minutes
                           {slot.availableCount === 1 ? "table" : "tables"}{" "}
                           available
                         </div>
-                        {/* <div className="text-xs text-slate-500 mt-1 mx-1">
-                          90-minute slot
-                        </div> */}
                       </button>
                     ))}
                   </div>
@@ -437,7 +531,7 @@ Duration: 90 minutes
                     <p className="text-slate-600">
                       {dateError
                         ? "Please select a Friday or Saturday"
-                        : "No available slots for selected date and party size"}
+                        : "No available slots for selected date"}
                     </p>
                     <p className="text-sm text-slate-500 mt-1">
                       Try a different date or check back later
@@ -446,11 +540,30 @@ Duration: 90 minutes
                 )}
               </div>
 
-              {/* Submit Button */}
+              <div>
+                <label>Special Requests</label>
+                <textarea
+                  value={bookingForm.specialRequests}
+                  onChange={(e) =>
+                    setBookingForm((prev) => ({
+                      ...prev,
+                      specialRequests: e.target.value,
+                    }))
+                  }
+                  rows={4}
+                  placeholder="Any special requests or dietary requirements?"
+                />
+              </div>
+
               <div className="flex justify-end">
                 <button
                   type="submit"
-                  disabled={loading || !selectedSlot || dateError}
+                  disabled={
+                    loading ||
+                    !selectedSlot ||
+                    dateError ||
+                    selectedTables.length !== requiredTables
+                  }
                   className="btn-primary rounded-lg"
                 >
                   {loading ? (

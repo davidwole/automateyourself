@@ -75,6 +75,13 @@ textarea {
   text-align: right;
 }
 
+.button-selected {
+  border-color: #3b82f6;
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  box-shadow: 2px 2px;
+}
+
 /* Typography */
 .text-4xl {
   font-size: 2.25rem;
@@ -651,6 +658,10 @@ button:disabled {
   to {
     transform: rotate(360deg);
   }
+}
+
+.seating {
+  height: 20rem;
 }
 
 /* Status badges */

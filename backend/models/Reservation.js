@@ -11,7 +11,17 @@ const reservationSchema = new mongoose.Schema(
       type: Number,
       required: true,
       min: 1,
-      max: 12,
+    },
+    tableNumbers: {
+      type: [Number],
+      required: true,
+      validate: {
+        validator: function (tables) {
+          // Each table number must be between 1 and 10
+          return tables.every((num) => num >= 1 && num <= 10);
+        },
+        message: "Table numbers must be between 1 and 10",
+      },
     },
     customerName: {
       type: String,
@@ -51,5 +61,6 @@ const reservationSchema = new mongoose.Schema(
 
 // Create compound index for efficient queries
 reservationSchema.index({ dateTime: 1, status: 1 });
+reservationSchema.index({ dateTime: 1, tableNumbers: 1 });
 
 module.exports = mongoose.model("Reservation", reservationSchema);
