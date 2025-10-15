@@ -75,6 +75,11 @@ textarea {
   text-align: right;
 }
 
+.table-buttons {
+  /* margin: 0.5rem; */
+  width: 3.3rem;
+}
+
 .button-selected {
   border-color: #3b82f6;
   background-color: #eff6ff;

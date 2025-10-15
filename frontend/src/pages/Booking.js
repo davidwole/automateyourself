@@ -460,7 +460,10 @@ Duration: 90 minutes
                     Select {requiredTables} table{requiredTables > 1 ? "s" : ""}{" "}
                     for your party of {bookingForm.partySize}
                   </p>
-                  <div className="flex grid-cols-5 gap-3">
+                  <div
+                    className="flex grid-cols-5 gap-3"
+                    style={{ flexWrap: "wrap", justifyContent: "center" }}
+                  >
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((tableNum) => {
                       const isReserved = reservedTables.includes(tableNum);
                       const isSelected = selectedTables.includes(tableNum);
@@ -473,7 +476,7 @@ Duration: 90 minutes
                             !isReserved && handleTableSelection(tableNum)
                           }
                           disabled={isReserved}
-                          className={`p-4 rounded-lg border-2 font-semibold transition-all ${
+                          className={`table-buttons rounded-lg border-2 font-semibold transition-all ${
                             isReserved
                               ? "bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed"
                               : isSelected
