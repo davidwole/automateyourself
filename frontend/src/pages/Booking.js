@@ -462,7 +462,7 @@ Duration: 90 minutes
                   </p>
                   <div
                     className="flex grid-cols-5 gap-3"
-                    style={{ flexWrap: "wrap", justifyContent: "center" }}
+                    style={{ flexWrap: "wrap" }}
                   >
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((tableNum) => {
                       const isReserved = reservedTables.includes(tableNum);
@@ -543,7 +543,7 @@ Duration: 90 minutes
                 )}
               </div>
 
-              <div>
+              <div className="mb-3">
                 <label>Special Requests</label>
                 <textarea
                   value={bookingForm.specialRequests}
